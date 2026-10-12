@@ -2,6 +2,8 @@
 
 Men's health app that connects all your data — wearables, scale, labs, nutrition, mood — into one place.
 
+![Ombre dashboard](screenshots/1-dashboard.png)
+
 ## How it works
 
 Every source is converted into one shape, an **observation**: a metric, a value in that metric's standard unit, a time, and where it came from.
