@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+/* Calm palette: warm stone background, deep slate text, muted green accent. */
+:root {
+  --background: #f5f3ee;
+  --surface: #ffffff;
+  --foreground: #1f2a2e;
+  --muted: #687370;
+  --line: #e2ded5;
+  --accent: #2f5d50;
+  --accent-foreground: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #121614;
+    --surface: #1b211e;
+    --foreground: #e8ece8;
+    --muted: #97a29d;
+    --line: #2b332f;
+    --accent: #8fb8a6;
+    --accent-foreground: #102019;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --font-sans: var(--font-geist-sans);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
