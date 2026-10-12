@@ -44,4 +44,4 @@ A simple, mobile-first web app where a man tracks his health progress.
 
 ## Notes
 
-- The earlier prototype (local SQLite dashboard with Apple Health/CSV import) lives in the `prototype/` folder (also tagged `prototype-v0` in git). It was replaced by this Next.js app and is not used.
+- The earlier prototype (local SQLite dashboard with Apple Health/CSV import) lives in the `prototype/` folder. It was replaced by this Next.js app and is not used.
