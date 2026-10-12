@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ombre</title>
+<style>
+  :root { --bg:#0e0f11; --card:#17191c; --line:#26292e; --text:#e8e9eb; --muted:#8b9098; --accent:#c9a46a; --low:#6aa5c9; --high:#d9715f; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.45 system-ui, -apple-system, sans-serif; }
+  main { max-width: 1040px; margin: 0 auto; padding: 24px 16px 64px; }
+  header { display:flex; align-items:baseline; gap:12px; margin-bottom: 24px; }
+  h1 { font-size: 26px; letter-spacing: .14em; margin:0; color:var(--accent); }
+  header p { margin:0; color:var(--muted); }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin: 28px 0 10px; }
+  .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius: 10px; padding: 12px 14px; cursor:pointer; }
+  .card .label { color: var(--muted); font-size: 13px; }
+  .card .val { font-size: 22px; font-weight: 600; margin-top: 2px; }
+  .card .val small { font-size: 13px; color: var(--muted); font-weight: 400; margin-left: 4px; }
+  .card .meta { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  .flag-high .val { color: var(--high); } .flag-low .val { color: var(--low); }
+  .empty { color: var(--muted); }
+  form, .panel { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  select, input, button { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; min-width: 0; }
+  button { background: var(--accent); color: #111; border: 0; font-weight: 600; cursor: pointer; }
+  #msg { color: var(--muted); font-size: 13px; width: 100%; }
+  svg { width: 100%; height: 160px; display:block; }
+  #chartTitle { margin: 0 0 6px; font-weight: 600; width:100%; }
+  code { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <header><h1>OMBRE</h1><p>All your health data, one place.</p></header>
+
+  <h2>Log a reading</h2>
+  <form id="log">
+    <select id="metric" required></select>
+    <input id="value" type="number" step="any" placeholder="Value" required style="width:110px">
+    <input id="unit" placeholder="Unit" style="width:90px">
+    <input id="when" type="datetime-local" required>
+    <button>Save</button>
+    <label style="margin-left:auto; color:var(--muted)">Import CSV <input id="csv" type="file" accept=".csv,text/csv"></label>
+    <div id="msg"></div>
+  </form>
+
+  <div id="chartPanel" class="panel" style="margin-top:10px; display:none">
+    <div id="chartTitle"></div>
+    <svg id="chart" viewBox="0 0 600 160" preserveAspectRatio="none"></svg>
+  </div>
+
+  <div id="summary"></div>
+</main>
+<script>
+const CATS = { body:'Body', heart:'Heart', sleep:'Sleep', activity:'Activity', nutrition:'Nutrition', labs:'Labs', mind:'Mind' };
+const $ = (id) => document.getElementById(id);
+let metrics = [];
+
+async function api(path, opts) {
+  const res = await fetch(path, opts);
+  const body = await res.json();
+  if (!res.ok) throw new Error(body.error);
+  return body;
+}
+
+function fmt(v) { return Math.abs(v) >= 1000 ? Math.round(v).toLocaleString() : +v.toFixed(2); }
+
+async function loadSummary() {
+  const rows = await api('/api/summary');
+  const byCat = Object.groupBy(rows, (r) => r.category);
+  $('summary').innerHTML = Object.entries(CATS).map(([k, name]) => `
+    <h2>${name}</h2>
+    ${byCat[k]?.length ? `<div class="grid">${byCat[k].map((r) => `
+      <div class="card ${r.flag ? 'flag-' + r.flag : ''}" data-metric="${r.metric}">
+        <div class="label">${r.label}</div>
+        <div class="val">${fmt(r.value)}<small>${r.unit}</small></div>
+        <div class="meta">${new Date(r.start).toLocaleDateString()} · ${r.source}${r.flag ? ' · ' + r.flag : ''}</div>
+      </div>`).join('')}</div>` : '<div class="empty">No data yet.</div>'}
+  `).join('');
+}
+
+async function showChart(metric) {
+  const def = metrics.find((m) => m.id === metric);
+  const from = new Date(Date.now() - 90 * 864e5).toISOString();
+  const pts = await api(`/api/daily/${metric}?from=${from}`);
+  $('chartPanel').style.display = 'flex';
+  $('chartTitle').textContent = `${def.label} — last 90 days (${def.unit}, daily ${def.daily})`;
+  if (pts.length < 2) { $('chart').innerHTML = '<text x="10" y="80" fill="#8b9098" font-size="14">Need at least two days of data to chart.</text>'; return; }
+  const vs = pts.map((p) => p.value), lo = Math.min(...vs), hi = Math.max(...vs), span = hi - lo || 1;
+  const t0 = Date.parse(pts[0].date), t1 = Date.parse(pts.at(-1).date);
+  const xy = pts.map((p) => [10 + 580 * (Date.parse(p.date) - t0) / (t1 - t0), 150 - 140 * (p.value - lo) / span]);
+  $('chart').innerHTML = `<polyline fill="none" stroke="#c9a46a" stroke-width="2" vector-effect="non-scaling-stroke" points="${xy.map((p) => p.join(',')).join(' ')}"/>`;
+}
+
+$('metric').addEventListener('change', () => { $('unit').placeholder = metrics.find((m) => m.id === $('metric').value)?.unit ?? 'Unit'; });
+
+$('log').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  try {
+    await api('/api/observations', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({
+      metric: $('metric').value, value: Number($('value').value), unit: $('unit').value || undefined,
+      start: new Date($('when').value).toISOString(), source: 'manual',
+    }) });
+    $('msg').textContent = 'Saved.'; $('value').value = '';
+    loadSummary();
+  } catch (err) { $('msg').textContent = err.message; }
+});
+
+$('csv').addEventListener('change', async () => {
+  const file = $('csv').files[0]; if (!file) return;
+  try {
+    const r = await api('/api/import/csv', { method: 'POST', body: await file.text() });
+    $('msg').textContent = `Imported ${r.added} new of ${r.parsed} readings` + (r.errors.length ? `, ${r.errors.length} errors (first: line ${r.errors[0].line} — ${r.errors[0].message})` : '.');
+    loadSummary();
+  } catch (err) { $('msg').textContent = err.message; }
+  $('csv').value = '';
+});
+
+$('summary').addEventListener('click', (e) => { const c = e.target.closest('.card'); if (c) showChart(c.dataset.metric); });
+
+(async () => {
+  metrics = await api('/api/metrics');
+  $('metric').innerHTML = Object.entries(CATS).map(([k, name]) =>
+    `<optgroup label="${name}">${metrics.filter((m) => m.category === k).map((m) => `<option value="${m.id}">${m.label} (${m.unit})</option>`).join('')}</optgroup>`).join('');
+  $('metric').dispatchEvent(new Event('change'));
+  const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  $('when').value = now.toISOString().slice(0, 16);
+  loadSummary();
+})();
+</script>
+</body>
+</html>

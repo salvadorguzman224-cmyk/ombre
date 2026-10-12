@@ -1,0 +1,19 @@
+{
+  "name": "ombre",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Men's health app connecting all your data in one place.",
+  "type": "module",
+  "engines": { "node": ">=22.18" },
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning src/server/index.ts",
+    "dev": "node --disable-warning=ExperimentalWarning --watch src/server/index.ts",
+    "import": "node --disable-warning=ExperimentalWarning src/cli/import.ts",
+    "test": "node --disable-warning=ExperimentalWarning --test \"test/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "typescript": "^5.9.0"
+  }
+}
